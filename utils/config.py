@@ -93,15 +93,17 @@ class ConfigManager:
 
     @property
     def ipv4_num(self):
-        return self.config.getint("Settings", "ipv4_num", fallback=5) if self.config.get(
-            "Settings", "ipv_type_prefer", fallback=""
-        ) else ""
+        try:
+            return self.config.getint("Settings", "ipv4_num", fallback=5)
+        except:
+            return ""
 
     @property
     def ipv6_num(self):
-        return self.config.getint("Settings", "ipv6_num", fallback=5) if self.config.get(
-            "Settings", "ipv_type_prefer", fallback=""
-        ) else ""
+        try:
+            return self.config.getint("Settings", "ipv6_num", fallback=5)
+        except:
+            return ""
 
     @property
     def ipv6_support(self):
@@ -165,6 +167,14 @@ class ConfigManager:
     @property
     def min_resolution_value(self):
         return get_resolution_value(self.min_resolution)
+
+    @property
+    def max_resolution(self):
+        return self.config.get("Settings", "max_resolution", fallback="1920x1080")
+
+    @property
+    def max_resolution_value(self):
+        return get_resolution_value(self.max_resolution)
 
     @property
     def urls_limit(self):
@@ -288,8 +298,8 @@ class ConfigManager:
 
     @property
     def open_driver(self):
-        return not os.environ.get("LITE") and self.config.getboolean(
-            "Settings", "open_driver", fallback=True
+        return self.config.getboolean(
+            "Settings", "open_driver", fallback=False
         )
 
     @property
@@ -307,6 +317,10 @@ class ConfigManager:
     @property
     def open_empty_category(self):
         return self.config.getboolean("Settings", "open_empty_category", fallback=True)
+
+    @property
+    def app_host(self):
+        return os.environ.get("APP_HOST") or self.config.get("Settings", "app_host", fallback="http://localhost")
 
     @property
     def app_port(self):
@@ -338,7 +352,19 @@ class ConfigManager:
 
     @property
     def sort_duplicate_limit(self):
-        return self.config.getint("Settings", "sort_duplicate_limit", fallback=3)
+        return self.config.getint("Settings", "sort_duplicate_limit", fallback=1)
+
+    @property
+    def cdn_url(self):
+        return self.config.get("Settings", "cdn_url", fallback="")
+
+    @property
+    def open_rtmp(self):
+        return not os.environ.get("GITHUB_ACTIONS") and self.config.getboolean("Settings", "open_rtmp", fallback=True)
+
+    @property
+    def open_headers(self):
+        return self.config.getboolean("Settings", "open_headers", fallback=False)
 
     def load(self):
         """
@@ -348,12 +374,12 @@ class ConfigManager:
         user_config_path = resource_path("config/user_config.ini")
         default_config_path = resource_path("config/config.ini")
 
-        config_files = [user_config_path, default_config_path]
+        # user config overwrites default config
+        config_files = [default_config_path, user_config_path]
         for config_file in config_files:
             if os.path.exists(config_file):
                 with open(config_file, "r", encoding="utf-8") as f:
                     self.config.read_file(f)
-                break
 
     def set(self, section, key, value):
         """
@@ -376,13 +402,13 @@ class ConfigManager:
         with open(user_config_path, "w", encoding="utf-8") as configfile:
             self.config.write(configfile)
 
-    def copy(self):
+    def copy(self, path="config"):
         """
         Copy config files to current directory
         """
-        dest_folder = os.path.join(os.getcwd(), "config")
+        dest_folder = os.path.join(os.getcwd(), path)
         try:
-            src_dir = resource_path("config")
+            src_dir = resource_path(path)
             if os.path.exists(src_dir):
                 if not os.path.exists(dest_folder):
                     os.makedirs(dest_folder, exist_ok=True)
